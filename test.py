@@ -1,4 +1,5 @@
 import sqlite3
+from operator import itemgetter, attrgetter
 
 
 class Infos():
@@ -9,6 +10,8 @@ class Infos():
         self._name = None
         self._ru_si_shi_jian = None
         self._che_bao_fei = None
+        self._cai_bao_fei = None
+        self._ren_bao_fei = None
 
     @property
     def zhong_zhi(self):
@@ -66,6 +69,31 @@ class Infos():
     def ren_bao_fei(self, value):
         self._ren_bao_fei = value
 
+    def __repr__(self):
+        return repr((self.zhong_zhi,
+                     self.ji_gou,
+                     self.name,
+                     self.ru_si_shi_jian,
+                     self.che_bao_fei,
+                     self.cai_bao_fei,
+                     self.ren_bao_fei))
+
+def bao_fei(name, zhong_zhi, xian_zhong):
+    str_sql = f"SELECT SUM([签单保费/批改保费]) \
+                FROM 销售人员业务跟踪表 \
+                WHERE 业务员 like '%{name}%' \
+                AND 中心支公司 like '%{zhong_zhi}' \
+                AND [车险/财产险/人身险] = '{xian_zhong}'"
+
+    cur.execute(str_sql)
+    value = cur.fetchone()[0]
+    if value is None:
+        value = 0.0
+    else:
+        value /= 10000
+
+    return value
+
 
 conn = sqlite3.connect('data.db')
 cur = conn.cursor()
@@ -77,38 +105,24 @@ cur.execute(str_sql)
 rens = []
 
 for values in cur.fetchall():
-    info = Infos()
-    info.zhong_zhi = values[0][7:]
-    info.ji_gou = values[1][11:]
-    info.name = values[2][10:]
-    info.ru_si_shi_jian = values[3][:10]
 
-    rens.append(info)
+    zhong_zhi = values[0][7:]
+    ji_gou = values[1][11:]
+    name = values[2][10:]
+    ru_si_shi_jian = values[3][:10]
+    che_bao_fei = bao_fei(name, zhong_zhi, '车险')
+    cai_bao_fei = bao_fei(name, zhong_zhi, '财产险')
+    ren_bao_fei = bao_fei(name, zhong_zhi, '人身险')
 
-i = 0
+    rens.append((zhong_zhi,
+                 ji_gou,
+                 name,
+                 ru_si_shi_jian,
+                 che_bao_fei,
+                 cai_bao_fei,
+                 ren_bao_fei))
 
-while i < len(rens):
-    str_sql = "SELECT SUM([签单保费/批改保费]) FROM 销售人员业务跟踪表 "
+rens_sort = sorted(rens, key=lambda ren: ren[4], reverse = True)
 
-    str_sql += f"WHERE 业务员 like '%{rens[i].name}%' \
-                 AND 中心支公司 like '%{rens[i].zhong_zhi}' \
-                 AND [车险/财产险/人身险] = '车险'"
-
-    cur.execute(str_sql)
-    rens[i].che_bao_fei = cur.fetchone()[0]
-    if rens[i].che_bao_fei is None:
-        rens[i].che_bao_fei = 0
-    else:
-        rens[i].che_bao_fei /= 10000
-
-    i += 1
-
-i = 0
-while i < len(rens):
-    print(rens[i].zhong_zhi,
-          rens[i].ji_gou,
-          rens[i].name,
-          rens[i].ru_si_shi_jian,
-          rens[i].che_bao_fei)
-
-    i += 1
+for ren in rens_sort:
+    print(ren)
