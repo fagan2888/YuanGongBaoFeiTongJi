@@ -1,144 +1,93 @@
 import sqlite3
-from operator import itemgetter, attrgetter
+from openpyxl import Workbook
+from stats import Stats
 
 
-class Infos():
+def rens_list(lei_xing):
+    if lei_xing == '前线':
+        str_sql = "SELECT 中支公司, 营销服务部, 业务员, 入司时间, 职级 FROM 前线"
+    else:
+        str_sql = "SELECT 中支公司, 营销服务部, 业务员, 入司时间 FROM 后线"
 
-    def __init__(self):
-        self._zhong_zhi = None
-        self._ji_gou = None
-        self._name = None
-        self._ru_si_shi_jian = None
-        self._che = None
-        self._cai = None
-        self._ren = None
+    cur.execute(str_sql)
 
-    @property
-    def zhong_zhi(self):
-        return self._zhong_zhi
+    rens = []
 
-    @zhong_zhi.setter
-    def zhong_zhi(self, str):
-        self._zhong_zhi = str
+    for values in cur.fetchall():
+        info = Stats(cur)
+        info.zhong_zhi = values[0][7:]
+        info.ji_gou = values[1][11:]
+        info.name = values[2][10:]
+        info.ru_si_shi_jian = values[3][:10]
+        if lei_xing == '前线':
+            info.zhi_ji = values[4][16:]
+        info.set_cai(nian_fen='2019')
+        info.set_che(nian_fen='2019')
+        info.set_ren(nian_fen='2019')
 
-    @property
-    def ji_gou(self):
-        return self._ji_gou
+        rens.append(info)
 
-    @ji_gou.setter
-    def ji_gou(self, str):
-        self._ji_gou = str
+    return rens
 
-    @property
-    def name(self):
-        return self._name
 
-    @name.setter
-    def name(self, str):
-        self._name = str
+def write(rens, xian_zhong, lei_xing='前线'):
+    if xian_zhong == '整体':
+        rens_sort = sorted(rens, key=lambda ren: ren.zheng_ti, reverse=True)
+    elif xian_zhong == '车险':
+        rens_sort = sorted(rens, key=lambda ren: ren.che, reverse=True)
+    else:
+        rens_sort = sorted(rens, key=lambda ren: ren.fei_che, reverse=True)
 
-    @property
-    def ru_si_shi_jian(self):
-        return self._ru_si_shi_jian
+    ws = wb.create_sheet(title=f'{lei_xing}人员{xian_zhong}保费排名')
 
-    @ru_si_shi_jian.setter
-    def ru_si_shi_jian(self, str):
-        self._ru_si_shi_jian = str
+    row = [f'{lei_xing}人员{xian_zhong}保费排名']
+    ws.append(row)
 
-    def set_che(self, nian_fen=None, yue_fen=None):
-        if nian_fen is not None:
-            self._che = self.bao_fei('车险', f"{nian_fen}")
-        elif yue_fen is not None:
-            self._che = self.bao_fei('车险', f"{nian_fen}", f"{yue_fen}")
+    row = ['排名',
+           '姓名',
+           f'{xian_zhong}保费（万元）',
+           '机构',
+           '职级',
+           '入司时间']
+    ws.append(row)
+
+    i = 1
+
+    for ren in rens_sort:
+        row = [i, ren.name]
+        if xian_zhong == '整体':
+            row.append(ren.zheng_ti)
+        elif xian_zhong == '车险':
+            row.append(ren.che)
         else:
-            self._che = self.bao_fei('车险')
-
-    @property
-    def che(self):
-        return self._che
-
-    def set_cai(self, nian_fen=None, yue_fen=None):
-        if nian_fen is not None:
-            self._cai = self.bao_fei('财产险', f"{nian_fen}")
-        elif yue_fen is not None:
-            self._cai = self.bao_fei('财产险', f"{nian_fen}", f"{yue_fen}")
-        else:
-            self._cai = self.bao_fei('财产险')
-
-    @property
-    def cai(self):
-        return self._cai
-
-    def set_ren(self, nian_fen=None, yue_fen=None):
-        if nian_fen is not None:
-            self._ren = self.bao_fei('人身险', f"{nian_fen}")
-        elif yue_fen is not None:
-            self._ren = self.bao_fei('人身险', f"{nian_fen}", f"{yue_fen}")
-        else:
-            self._ren = self.bao_fei('人身险')
-
-    @property
-    def ren(self):
-        return self._ren
-
-    @property
-    def fei_che(self):
-        return self.cai + self.ren
-
-    # def __repr__(self):
-    #     return repr((self.zhong_zhi,
-    #                  self.ji_gou,
-    #                  self.name,
-    #                  self.ru_si_shi_jian,
-    #                  self.che_bao_fei,
-    #                  self.cai_bao_fei,
-    #                  self.ren_bao_fei))
-
-    def bao_fei(self, xian_zhong, nian_fen=None, yue_fen=None):
-        str_sql = f"SELECT SUM([签单保费/批改保费]) \
-                    FROM 销售人员业务跟踪表 \
-                    WHERE 业务员 like '%{self.name}%' \
-                    AND 中心支公司 like '%{self.zhong_zhi}' \
-                    AND [车险/财产险/人身险] = '{xian_zhong}'"
-
-        if nian_fen is not None:
-            str_sql += f" AND 年份 = '{nian_fen}'"
-
-        if yue_fen is not None:
-            str_sql += f" AND 月份 = '{yue_fen}'"
-
-        cur.execute(str_sql)
-        value = cur.fetchone()[0]
-        if value is None:
-            value = 0.0
-        else:
-            value /= 10000
-
-        return value
+            row.append(ren.fei_che)
+        row.append(ren.ji_gou)
+        row.append(ren.zhi_ji)
+        row.append(ren.ru_si_shi_jian)
+        ws.append(row)
+        i += 1
 
 
 conn = sqlite3.connect('data.db')
 cur = conn.cursor()
 
-str_sql = "SELECT 中支公司, 营销服务部, 业务员, 入司时间 FROM 前线"
 
-cur.execute(str_sql)
 
-rens = []
 
-for values in cur.fetchall():
-    info = Infos()
-    info.zhong_zhi = values[0][7:]
-    info.ji_gou = values[1][11:]
-    info.name = values[2][10:]
-    info.ru_si_shi_jian = values[3][:10]
-    info.set_cai()
-    info.set_che()
-    info.set_ren()
 
-    rens.append(info)
+wb = Workbook()
 
-rens_sort = sorted(rens, key=lambda ren: ren.che, reverse=True)
+rens = rens_list('前线')
 
-for ren in rens_sort:
-    print(ren.name, ren.che)
+write(rens, '整体')
+write(rens, '车险')
+write(rens, '非车险')
+
+rens = rens = rens_list('后线')
+write(rens, '整体', '后线')
+
+wb.remove(wb['Sheet'])
+wb.save("2019年销售人员业务跟踪表.xlsx")
+
+cur.close()
+conn.close()

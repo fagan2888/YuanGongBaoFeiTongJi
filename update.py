@@ -50,6 +50,9 @@ def update(table_name):
 
     conn.commit()
 
+    cur.close()
+    conn.close()
+
 
 if __name__ == '__main__':
     update('后线')
