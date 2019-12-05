@@ -111,8 +111,10 @@ class Stats():
         str_sql = f"SELECT SUM([签单保费/批改保费]) \
                     FROM 销售人员业务跟踪表 \
                     WHERE 业务员 like '%{self.name}%' \
-                    AND 中心支公司 like '%{self.zhong_zhi}' \
-                    AND [车险/财产险/人身险] = '{xian_zhong}'"
+                    AND 中心支公司 like '%{self.zhong_zhi}'"
+
+        if xian_zhong != '整体':
+            str_sql += f" AND [车险/财产险/人身险] = '{xian_zhong}'"
 
         if nian_fen is not None:
             str_sql += f" AND 年份 = '{nian_fen}'"
