@@ -56,11 +56,12 @@ class Stats():
 
     def set_che(self, nian_fen=None, yue_fen=None):
         if nian_fen is not None:
-            self._che = self.bao_fei('车险', f"{nian_fen}")
+            self._che = self.bao_fei(xian_zhong='车险', nian_fen=f"{nian_fen}")
         elif yue_fen is not None:
-            self._che = self.bao_fei('车险', f"{nian_fen}", f"{yue_fen}")
+            self._che = self.bao_fei(xian_zhong='车险', nian_fen=f"{nian_fen}",
+                                     yue_fen=f"{yue_fen}")
         else:
-            self._che = self.bao_fei('车险')
+            self._che = self.bao_fei(xian_zhong='车险')
 
     @property
     def che(self):
@@ -68,11 +69,12 @@ class Stats():
 
     def set_cai(self, nian_fen=None, yue_fen=None):
         if nian_fen is not None:
-            self._cai = self.bao_fei('财产险', f"{nian_fen}")
+            self._cai = self.bao_fei(xian_zhong='财产险', nian_fen=f"{nian_fen}")
         elif yue_fen is not None:
-            self._cai = self.bao_fei('财产险', f"{nian_fen}", f"{yue_fen}")
+            self._cai = self.bao_fei(xian_zhong='财产险', nian_fen=f"{nian_fen}",
+                                     yue_fen=f"{yue_fen}")
         else:
-            self._cai = self.bao_fei('财产险')
+            self._cai = self.bao_fei(xian_zhong='财产险')
 
     @property
     def cai(self):
@@ -80,11 +82,12 @@ class Stats():
 
     def set_ren(self, nian_fen=None, yue_fen=None):
         if nian_fen is not None:
-            self._ren = self.bao_fei('人身险', f"{nian_fen}")
+            self._ren = self.bao_fei(xian_zhong='人身险', nian_fen=f"{nian_fen}")
         elif yue_fen is not None:
-            self._ren = self.bao_fei('人身险', f"{nian_fen}", f"{yue_fen}")
+            self._ren = self.bao_fei(xian_zhong='人身险', nian_fen=f"{nian_fen}",
+                                     yue_fen=f"{yue_fen}")
         else:
-            self._ren = self.bao_fei('人身险')
+            self._ren = self.bao_fei(xian_zhong='人身险')
 
     @property
     def ren(self):
@@ -107,10 +110,14 @@ class Stats():
     #                  self.cai_bao_fei,
     #                  self.ren_bao_fei))
 
-    def bao_fei(self, xian_zhong, nian_fen=None, yue_fen=None):
+    def bao_fei(self, xian_zhong='整体', nian_fen=None, yue_fen=None):
         str_sql = f"SELECT SUM([签单保费/批改保费]) \
                     FROM 销售人员业务跟踪表 \
-                    WHERE 业务员 like '%{self.name}%' \
+                    WHERE (业务员 like '%{self.name}' \
+                    OR [业务员] LIKE '%{self.name}(%' \
+                    OR [业务员] LIKE '%{self.name}（%' \
+                    OR [业务员] LIKE '%{self.name}\\%' \
+                    OR [业务员] LIKE '%{self.name}/%') \
                     AND 中心支公司 like '%{self.zhong_zhi}'"
 
         if xian_zhong != '整体':

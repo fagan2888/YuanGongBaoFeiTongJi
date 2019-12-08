@@ -4,6 +4,17 @@ from stats import Stats
 
 
 def rens_list(lei_xing):
+    '''
+    从数据库中获取前线人员和后线人员的名单
+    并初始化人员信息列表对象
+    '''
+
+    year_sql = "SELECT MAX ([年份]) \
+                FROM [销售人员业务跟踪表]"
+
+    cur.execute(year_sql)
+    max_year = cur.fetchone()[0]
+
     if lei_xing == '前线':
         str_sql = "SELECT 中支公司, 营销服务部, 业务员, 入司时间, 职级 FROM 前线"
     else:
@@ -21,9 +32,10 @@ def rens_list(lei_xing):
         info.ru_si_shi_jian = values[3][:10]
         if lei_xing == '前线':
             info.zhi_ji = values[4][16:]
-        info.set_cai(nian_fen='2019')
-        info.set_che(nian_fen='2019')
-        info.set_ren(nian_fen='2019')
+
+        info.set_cai(nian_fen=f"{max_year}")
+        info.set_che(nian_fen=f"{max_year}")
+        info.set_ren(nian_fen=f"{max_year}")
 
         rens.append(info)
 
@@ -31,6 +43,10 @@ def rens_list(lei_xing):
 
 
 def write(rens, xian_zhong, lei_xing='前线'):
+    '''
+    将分公司全体人员数据按险种写入到Excel中
+    按保费规模进行排名
+    '''
     if xian_zhong == '整体':
         rens_sort = sorted(rens, key=lambda ren: ren.zheng_ti, reverse=True)
     elif xian_zhong == '车险':
@@ -77,11 +93,18 @@ def write(rens, xian_zhong, lei_xing='前线'):
 
 
 def write_zhong_zhi(rens, zhong_zhi):
+    '''
+    按中支为单位，将前线人员信息写入到Excel中
+    以个人最新一年整体保费规模排名
+    '''
+
+    # 筛选出相应中支的人员
     new_rens = []
     for ren in rens:
         if zhong_zhi in ren.zhong_zhi:
             new_rens.append(ren)
 
+    # 以整体保费规模进行排序
     rens_sort = sorted(new_rens, key=lambda ren: ren.zheng_ti, reverse=True)
 
     ws = wb.create_sheet(title=f'{zhong_zhi}前线人员整体保费跟踪表')
@@ -91,10 +114,35 @@ def write_zhong_zhi(rens, zhong_zhi):
 
     row = ['排名',
            '姓名',
-           '保费（万元）',
            '机构',
            '职级',
            '入司时间']
+
+    year_sql = "SELECT [年份] \
+                FROM [销售人员业务跟踪表] \
+                GROUP  BY [年份] \
+                ORDER  BY [年份] DESC"
+
+    cur.execute(year_sql)
+    year = []
+    for y_tupe in cur.fetchall():
+        for y in y_tupe:
+            year.append(y)
+
+    for y in year:
+        row.append(f'{y}年\n保费（万元）')
+
+    for y in year:
+        month_sql = f"SELECT [月份] \
+                     FROM [销售人员业务跟踪表] \
+                     WHERE [年份] = '{y}' \
+                     GROUP  BY [月份] \
+                     ORDER  BY [月份] DESC"
+
+        cur.execute(month_sql)
+        for m_tupe in cur.fetchall():
+            for m in m_tupe:
+                row.append(f"{y}年{m}月\n保费（万元）")
 
     ws.append(row)
 
@@ -103,11 +151,24 @@ def write_zhong_zhi(rens, zhong_zhi):
     for ren in rens_sort:
         row = [i,
                ren.name,
-               ren.zheng_ti,
                ren.ji_gou,
                ren.zhi_ji,
-               ren.ru_si_shi_jian,
-               ren.bao_fei(xian_zhong='整体', nian_fen='2019', yue_fen='01')]
+               ren.ru_si_shi_jian]
+        for y in year:
+            row.append(ren.bao_fei(nian_fen=y))
+
+        for y in year:
+            month_sql = f"SELECT [月份] \
+                        FROM [销售人员业务跟踪表] \
+                        WHERE [年份] = '{y}' \
+                        GROUP  BY [月份] \
+                        ORDER  BY [月份] DESC"
+
+            cur.execute(month_sql)
+            for m_tupe in cur.fetchall():
+                for m in m_tupe:
+                    row.append(ren.bao_fei(nian_fen=y, yue_fen=m))
+
         ws.append(row)
         i += 1
 
@@ -119,11 +180,18 @@ wb = Workbook()
 
 rens = rens_list('前线')
 
-write(rens, '整体')
-write(rens, '车险')
-write(rens, '非车险')
+# write(rens, '整体')
+# write(rens, '车险')
+# write(rens, '非车险')
 
+write_zhong_zhi(rens, '分公司营业一部')
 write_zhong_zhi(rens, '曲靖')
+write_zhong_zhi(rens, '文山')
+write_zhong_zhi(rens, '大理')
+write_zhong_zhi(rens, '保山')
+write_zhong_zhi(rens, '版纳')
+write_zhong_zhi(rens, '怒江')
+write_zhong_zhi(rens, '昭通')
 
 # rens = rens_list('后线')
 # write(rens, '整体', '后线')
