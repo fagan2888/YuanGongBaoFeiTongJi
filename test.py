@@ -1,48 +1,7 @@
-import sqlite3
-from openpyxl import Workbook
 from stats import Stats
 
 
-def rens_list(lei_xing):
-    '''
-    从数据库中获取前线人员和后线人员的名单
-    并初始化人员信息列表对象
-    '''
-
-    year_sql = "SELECT MAX ([年份]) \
-                FROM [销售人员业务跟踪表]"
-
-    cur.execute(year_sql)
-    max_year = cur.fetchone()[0]
-
-    if lei_xing == '前线':
-        str_sql = "SELECT 中支公司, 营销服务部, 业务员, 入司时间, 职级 FROM 前线"
-    else:
-        str_sql = "SELECT 中支公司, 营销服务部, 业务员, 入司时间 FROM 后线"
-
-    cur.execute(str_sql)
-
-    rens = []
-
-    for values in cur.fetchall():
-        info = Stats(cur)
-        info.zhong_zhi = values[0][7:]
-        info.ji_gou = values[1][11:]
-        info.name = values[2][10:]
-        info.ru_si_shi_jian = values[3][:10]
-        if lei_xing == '前线':
-            info.zhi_ji = values[4][16:]
-
-        info.set_cai(nian_fen=f"{max_year}")
-        info.set_che(nian_fen=f"{max_year}")
-        info.set_ren(nian_fen=f"{max_year}")
-
-        rens.append(info)
-
-    return rens
-
-
-def write(rens, xian_zhong, lei_xing='前线'):
+def write(wb, rens, xian_zhong, lei_xing='前线'):
     '''
     将分公司全体人员数据按险种写入到Excel中
     按保费规模进行排名
@@ -91,6 +50,31 @@ def write(rens, xian_zhong, lei_xing='前线'):
         ws.append(row)
         i += 1
 
+    if lei_xing == '前线':
+        ws.merge_cells("A1:F1")
+    else:
+        ws.merge_cells("A1:E1")
+
+    ws['A1'].style = 'title_style'
+
+    r = 1
+    for row in ws.rows:
+        c = 1
+        for cell in row:
+            if r <=2:
+                cell.style = 'title_style'
+            else:
+                if c == 3:
+                    cell.style = 'num_style'
+                else:
+                    cell.style = 'str_style'
+            c += 1
+        r +=1
+
+    print(f'{lei_xing}人员{xian_zhong}保费排名表写入完成')
+
+
+
 
 def write_zhong_zhi(rens, zhong_zhi):
     '''
@@ -107,7 +91,9 @@ def write_zhong_zhi(rens, zhong_zhi):
     # 以整体保费规模进行排序
     rens_sort = sorted(new_rens, key=lambda ren: ren.zheng_ti, reverse=True)
 
-    ws = wb.create_sheet(title=f'{zhong_zhi}前线人员整体保费跟踪表')
+    if zhong_zhi == '分公司营业一部':
+        zhong_zhi = '昆明'
+    ws = wb.create_sheet(title=f'{zhong_zhi}')
 
     row = [f'{zhong_zhi}前线人员整体保费跟踪表']
     ws.append(row)
@@ -172,33 +158,5 @@ def write_zhong_zhi(rens, zhong_zhi):
         ws.append(row)
         i += 1
 
-
-conn = sqlite3.connect('data.db')
-cur = conn.cursor()
-
-wb = Workbook()
-
-rens = rens_list('前线')
-
-# write(rens, '整体')
-# write(rens, '车险')
-# write(rens, '非车险')
-
-write_zhong_zhi(rens, '分公司营业一部')
-write_zhong_zhi(rens, '曲靖')
-write_zhong_zhi(rens, '文山')
-write_zhong_zhi(rens, '大理')
-write_zhong_zhi(rens, '保山')
-write_zhong_zhi(rens, '版纳')
-write_zhong_zhi(rens, '怒江')
-write_zhong_zhi(rens, '昭通')
-
-# rens = rens_list('后线')
-# write(rens, '整体', '后线')
-# wb.move_sheet('后线人员整体保费排名', offset=-1)
-
-wb.remove(wb['Sheet'])
-wb.save("2019年销售人员业务跟踪表.xlsx")
-
-cur.close()
-conn.close()
+    # title_sytle = NamedStyle(name='title_sytle')
+    # title_sytle.font(name='微软雅黑', size=14, bold=True)
