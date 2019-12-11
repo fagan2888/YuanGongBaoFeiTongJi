@@ -2,7 +2,7 @@ from openpyxl import load_workbook
 import sqlite3
 
 
-def update(table_name):
+def update(conn, cur, table_name):
     wb = load_workbook(filename=table_name + '.xlsx', read_only=True)
     if table_name == '销售人员业务跟踪表':
         ws = wb['page']
@@ -24,9 +24,6 @@ def update(table_name):
         titles.remove('同城异地')
         titles.append('备注')
 
-    conn = sqlite3.connect('data.db')
-    cur = conn.cursor()
-
     str_sql = f"CREATE TABLE '{table_name}' ("
     for value in titles:
         str_sql += f"'{value}' TEXT ,"
@@ -45,16 +42,6 @@ def update(table_name):
         for key in row:
             str_sql += f"'{key.value}', "
         str_sql = str_sql[:-2] + ')'
-        print(str_sql)
         cur.execute(str_sql)
 
     conn.commit()
-
-    cur.close()
-    conn.close()
-
-
-if __name__ == '__main__':
-    update('后线')
-    update('前线')
-    update('销售人员业务跟踪表')

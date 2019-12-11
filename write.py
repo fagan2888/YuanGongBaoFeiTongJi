@@ -1,4 +1,5 @@
 from stats import Stats
+from openpyxl.utils import get_column_letter
 
 
 def write(wb, rens, xian_zhong, lei_xing='前线'):
@@ -61,22 +62,43 @@ def write(wb, rens, xian_zhong, lei_xing='前线'):
     for row in ws.rows:
         c = 1
         for cell in row:
-            if r <=2:
+            if r <= 2:
                 cell.style = 'title_style'
             else:
                 if c == 3:
-                    cell.style = 'num_style'
+                    if r % 2 == 0:
+                        cell.style = 'num_style'
+                    else:
+                        cell.style = 'num_style_fill'
+
                 else:
-                    cell.style = 'str_style'
+                    if r % 2 == 0:
+                        cell.style = 'str_style'
+                    else:
+                        cell.style = 'str_style_fill'
             c += 1
-        r +=1
+        r += 1
+
+    if lei_xing == '前线':
+        ws.row_dimensions[1].height = 40
+        ws.column_dimensions['A'].width = 5
+        ws.column_dimensions['B'].width = 7
+        ws.column_dimensions['C'].width = 12
+        ws.column_dimensions['D'].width = 56
+        ws.column_dimensions['E'].width = 16
+        ws.column_dimensions['F'].width = 12
+    else:
+        ws.row_dimensions[1].height = 40
+        ws.column_dimensions['A'].width = 5
+        ws.column_dimensions['B'].width = 7
+        ws.column_dimensions['C'].width = 12
+        ws.column_dimensions['D'].width = 56
+        ws.column_dimensions['E'].width = 12
 
     print(f'{lei_xing}人员{xian_zhong}保费排名表写入完成')
 
 
-
-
-def write_zhong_zhi(rens, zhong_zhi):
+def write_zhong_zhi(wb, cur, rens, zhong_zhi):
     '''
     按中支为单位，将前线人员信息写入到Excel中
     以个人最新一年整体保费规模排名
@@ -158,5 +180,42 @@ def write_zhong_zhi(rens, zhong_zhi):
         ws.append(row)
         i += 1
 
-    # title_sytle = NamedStyle(name='title_sytle')
-    # title_sytle.font(name='微软雅黑', size=14, bold=True)
+    ws.merge_cells("A1:H1")
+
+    ws['A1'].style = 'title_style'
+
+    r = 1
+    for row in ws.rows:
+        c = 1
+        for cell in row:
+            if r <= 2:
+                cell.style = 'title_style'
+            else:
+                if c > 5:
+                    if r % 2 == 0:
+                        cell.style = 'num_style'
+                    else:
+                        cell.style = 'num_style_fill'
+
+                else:
+                    if r % 2 == 0:
+                        cell.style = 'str_style'
+                    else:
+                        cell.style = 'str_style_fill'
+            c += 1
+        r += 1
+
+    ws.row_dimensions[1].height = 40
+    ws.column_dimensions['A'].width = 5
+    ws.column_dimensions['B'].width = 7
+    ws.column_dimensions['C'].width = 56
+    ws.column_dimensions['D'].width = 16
+    ws.column_dimensions['E'].width = 12
+
+    c = 6
+    while c <= ws.max_column:
+        letter = get_column_letter(c)
+        ws.column_dimensions[letter].width = 13
+        c += 1
+
+    print(f'{zhong_zhi}中支信息表写入完成')
